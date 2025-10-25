@@ -33,7 +33,7 @@
         body.dimmed {
             pointer-events: none;
         }
-        
+
         /* Game container styles */
         .game-container {
             width: 500px;
@@ -70,7 +70,7 @@
             display: flex;
             justify-content: space-between;
             margin-bottom: 1em;
-            font-size: 1.2em;
+            font-size: 1.2em; /* This size is inherited by all children */
             font-weight: bold;
         }
         
@@ -89,13 +89,14 @@
         }
         
         .current-score-container {
-            font-size: 1.2em;
-            font-weight: bold;
+            /* Inherits font size from parent .game-header-stats */
+            font-size: inherit; 
+            font-weight: inherit;
             margin-bottom: 0.5em;
         }
         
         .target-score-container {
-            font-size: 1.5em;
+            font-size: 1.5em; /* Larger font size for the target */
             font-weight: bold;
             margin-bottom: 0.5em;
         }
@@ -200,7 +201,6 @@
         .hidden {
             display: none;
         }
-
         /* Settings button */
         #settings-button {
             position: fixed;
@@ -360,7 +360,7 @@
         
         <div class="info-bar">
             <span>Level: <span id="level">1</span></span>
-            <span>Most Levels: <span id="most-level">0</span></span>
+            <span id="most-levels-display">Most Levels: <span id="most-level">0</span></span>
         </div>
         
         <div class="game-header-stats">
@@ -412,6 +412,7 @@
             const targetSumElement = document.getElementById('target-sum');
             const levelElement = document.getElementById('level');
             const mostLevelElement = document.getElementById('most-level');
+            const mostLevelsDisplay = document.getElementById('most-levels-display');
             const currentScoreElement = document.getElementById('current-score');
             const mostScoreElement = document.getElementById('most-score');
             const feedbackMessage = document.getElementById('feedback-message');
@@ -443,13 +444,14 @@
             let currentScore = 0;
             let timerFrame;
             let startTime;
-            let timerActive = false;
+            let timerActive = false; // Default: Timer OFF
             let gameStarted = false;
             let infLevelsActive = true; // Default: Infinite Levels ON
             let gameWins = 0;
             let bestTime = Infinity;
-            // CORRECTED: numberValues array is now initialized with values
-            const numberValues = [1, 2, 4, 8, 16, 32, 64, 128, 256];
+            let numberValues = [];
+            let currentRunTime = 0; // Cumulative time for the 10-level run
+            let isTenLevelRun = false; // Tracks if it's a 10-level game
 
             // --- High Score Functions ---
             function loadHighScores() {
@@ -473,14 +475,14 @@
                     bestTimeElement.textContent = formatTime(bestTime);
                 }
             }
-            
+
             // --- Timer Functions ---
             function startTimer() {
                 if (timerActive) {
                     startTime = performance.now();
                     function updateTimer() {
                         const elapsedTime = performance.now() - startTime;
-                        timerDisplay.textContent = formatTime(elapsedTime);
+                        timerDisplay.textContent = formatTime(currentRunTime + elapsedTime);
                         timerFrame = requestAnimationFrame(updateTimer);
                     }
                     timerFrame = requestAnimationFrame(updateTimer);
@@ -491,6 +493,12 @@
                 cancelAnimationFrame(timerFrame);
             }
             
+            function resetAndStartTimer() {
+                stopTimer();
+                timerDisplay.textContent = '00:00:00.000';
+                gameStarted = false; // Reset gameStarted flag
+            }
+
             function formatTime(milliseconds) {
                 const hours = Math.floor(milliseconds / 3600000);
                 const minutes = Math.floor((milliseconds % 3600000) / 60000);
@@ -499,44 +507,31 @@
                 return `${padZero(hours)}:${padZero(minutes)}:${padZero(seconds)}.${padZero(ms, 3)}`;
             }
 
-            function resetTimer() {
-                stopTimer();
-                timerDisplay.textContent = '00:00:00.000';
-                gameStarted = false;
-            }
-            
             function padZero(number, length = 2) {
                 return number.toString().padStart(length, '0');
             }
 
-            function toggleTimerDisplay(visible) {
-                timerDisplay.style.display = visible ? '' : 'none';
-            }
-            
-            // NEW: Toggle visibility of Wins and Best Time stats
-            function toggleInfLevelStats(visible) {
-                infLevelStats.style.display = visible ? 'grid' : 'none';
-            }
-
             // --- Game Logic Functions ---
-            function generateTargetSum() {
-                let possibleSum = 0;
-                let usedValues = new Set();
-                
-                const numTerms = Math.floor(Math.random() * (numberValues.length - 2)) + 2; 
-                const shuffledValues = [...numberValues].sort(() => Math.random() - 0.5);
+            function generateNumbers() {
+                numberValues = [1, 2, 4, 8, 16, 32, 64, 128, 256];
+            }
 
-                for (let i = 0; i < numTerms; i++) {
-                    possibleSum += shuffledValues[i];
-                    usedValues.add(shuffledValues[i]);
-                }
+            function generateTargetSum() {
+                let tempValues = [...numberValues];
+                let possibleSum = 0;
+                let usedValuesCount = Math.floor(Math.random() * (tempValues.length - 1)) + 1;
                 
+                for (let i = 0; i < usedValuesCount; i++) {
+                    const randomIndex = Math.floor(Math.random() * tempValues.length);
+                    const randomValue = tempValues.splice(randomIndex, 1);
+                    possibleSum += parseInt(randomValue, 10);
+                }
+
                 if (possibleSum === 0) {
                     const randomValue = numberValues[Math.floor(Math.random() * numberValues.length)];
                     possibleSum = randomValue;
-                    usedValues.add(randomValue);
                 }
-                
+
                 targetSum = possibleSum;
                 targetSumElement.textContent = targetSum;
                 createNumberButtons(numberValues);
@@ -546,12 +541,12 @@
                 const button = event.currentTarget;
                 const value = parseInt(button.dataset.value, 10);
                 const toggleStateSpan = button.querySelector('.toggle-state');
-                
+
                 if (!gameStarted) {
                     startTimer();
                     gameStarted = true;
                 }
-                
+
                 if (isNaN(totalSum) || totalSum === null) {
                     totalSum = 0;
                 }
@@ -567,64 +562,75 @@
                     button.classList.add('active');
                     toggleStateSpan.textContent = '1';
                 }
-                
-                totalSum = Math.round(totalSum);
+
                 currentSumElement.textContent = totalSum;
                 checkWinCondition();
             }
 
             function checkWinCondition() {
                 if (totalSum === targetSum) {
-                    // Check if infinite levels are disabled and if the current level limit is reached.
-                    if (!infLevelsActive && currentLevel >= 10) {
-                        endGameWin();
-                        return;
+                    currentScore += 10;
+                    currentScoreElement.textContent = currentScore;
+                    updateMostScore();
+                    
+                    currentRunTime += performance.now() - startTime; // Add elapsed time to cumulative total
+                    stopTimer(); // Stop timer to calculate time
+
+                    if (isTenLevelRun) {
+                        if (currentLevel < 10) {
+                            showLevelUpOverlay();
+                        } else {
+                            updateBestTime();
+                            showEndGameMessage();
+                        }
+                    } else {
+                        updateMostLevel();
+                        showLevelUpOverlay();
                     }
-                    levelComplete();
-                } else {
-                    feedbackMessage.classList.add('hidden');
                 }
             }
-            
-            // End game on win
-            function endGameWin() {
-                stopTimer();
-                showFeedback('success', 'You completed all 10 levels!');
+
+            function updateBestTime() {
+                if (currentRunTime < bestTime) {
+                    bestTime = currentRunTime;
+                    localStorage.setItem('bestTime', bestTime);
+                    bestTimeElement.textContent = formatTime(bestTime);
+                }
                 gameWins++;
-                winsElement.textContent = gameWins;
                 localStorage.setItem('wins', gameWins);
-                
-                if (timerActive) {
-                    const finalTime = performance.now() - startTime;
-                    if (finalTime < bestTime) {
-                        bestTime = finalTime;
-                        bestTimeElement.textContent = formatTime(bestTime);
-                        localStorage.setItem('bestTime', bestTime);
+                winsElement.textContent = gameWins;
+            }
+
+            function updateMostScore() {
+                const mostScore = parseInt(mostScoreElement.textContent, 10);
+                if (currentScore > mostScore) {
+                    mostScoreElement.textContent = currentScore;
+                    localStorage.setItem('mostScore', currentScore);
+                }
+            }
+
+            function updateMostLevel() {
+                if (infLevelsActive) {
+                    const mostLevel = parseInt(mostLevelElement.textContent, 10);
+                    if (currentLevel > mostLevel) {
+                        mostLevelElement.textContent = currentLevel;
+                        localStorage.setItem('mostLevel', currentLevel);
                     }
                 }
             }
 
-            function levelComplete() {
-                currentScore += targetSum;
-                currentScoreElement.textContent = currentScore;
-                
-                const currentMostLevel = parseInt(mostLevelElement.textContent, 10);
-                if (currentLevel > currentMostLevel) {
-                    localStorage.setItem('mostLevel', currentLevel);
-                    mostLevelElement.textContent = currentLevel;
-                }
-                
-                const currentMostScore = parseInt(mostScoreElement.textContent, 10) || 0;
-                if (currentScore > currentMostScore) {
-                    localStorage.setItem('mostScore', currentScore);
-                    mostScoreElement.textContent = currentScore;
-                }
+            function showEndGameMessage() {
+                const finalTime = formatTime(currentRunTime);
+                const message = `You completed all 10 levels! Your time: ${finalTime}`;
+                showFeedback('success', message);
+            }
 
-                levelUpOverlay.classList.add('visible');
-                
-                document.querySelectorAll('.number-btn.active').forEach(button => {
+            function showLevelUpOverlay() {
+                const buttons = document.querySelectorAll('.number-btn.active');
+                buttons.forEach(button => {
                     button.classList.add('fade-out-green');
                 });
+                levelUpOverlay.classList.add('visible');
 
                 setTimeout(() => {
                     resetGameVariables();
@@ -651,7 +657,7 @@
                     const button = document.createElement('button');
                     button.classList.add('number-btn');
                     button.dataset.value = value;
-                    button.innerHTML = `${value}<span class="toggle-state">0</span>`;
+                    button.innerHTML = `${value}<span class="toggle-state">0</span>`; 
                     button.addEventListener('click', handleButtonClick);
                     numbersGrid.appendChild(button);
                 });
@@ -661,15 +667,25 @@
                 totalSum = 0;
                 currentSumElement.textContent = 0;
                 feedbackMessage.classList.add('hidden');
-                currentLevel++;
-                levelElement.textContent = currentLevel;
-                
-                document.querySelectorAll('.number-btn').forEach(button => {
-                    button.classList.remove('active');
-                    button.classList.remove('fade-out-green');
-                });
-                
-                generateTargetSum();
+
+                if (isTenLevelRun && currentLevel >= 10) {
+                    // Game over in 10-level mode, don't reset variables here.
+                } else {
+                    currentLevel++;
+                    levelElement.textContent = currentLevel;
+                    document.querySelectorAll('.number-btn').forEach(button => {
+                        button.classList.remove('active');
+                        button.classList.remove('fade-out-green');
+                        button.querySelector('.toggle-state').textContent = '0';
+                    });
+                    generateNumbers(); // Re-generate numbers for the new level
+                    generateTargetSum();
+                    if (timerActive) {
+                        // Restart the timer only if in INF mode
+                        startTimer();
+                        gameStarted = true;
+                    }
+                }
             }
 
             function resetGame() {
@@ -680,8 +696,22 @@
                 currentScore = 0;
                 currentScoreElement.textContent = currentScore;
                 feedbackMessage.classList.add('hidden');
-                resetTimer();
+                currentRunTime = 0;
+                gameStarted = false;
+                
+                generateNumbers(); 
                 generateTargetSum();
+                
+                if (timerActive) {
+                    stopTimer();
+                    timerDisplay.textContent = '00:00:00.000';
+                }
+                
+                document.querySelectorAll('.number-btn').forEach(button => {
+                    button.classList.remove('active');
+                    button.classList.remove('fade-out-green');
+                    button.querySelector('.toggle-state').textContent = '0';
+                });
             }
 
             // --- Settings Functions ---
@@ -690,140 +720,114 @@
                 localStorage.setItem('music', backgroundMusic.paused ? 'off' : 'on');
                 localStorage.setItem('timer', timerActive ? 'on' : 'off');
                 localStorage.setItem('infLevels', infLevelsActive ? 'on' : 'off');
-                localStorage.setItem('wins', gameWins);
-                localStorage.setItem('bestTime', bestTime);
             }
 
             function applySettings(theme, music, timer, infLevels) {
                 // Apply Theme
-                if (theme === 'light') {
-                    document.body.classList.remove('dark-mode');
-                    document.body.classList.add('light-mode');
-                    themeLightButton.classList.add('active');
-                    themeDarkButton.classList.remove('active');
-                } else {
-                    document.body.classList.remove('light-mode');
-                    document.body.classList.add('dark-mode');
-                    themeDarkButton.classList.add('active');
-                    themeLightButton.classList.remove('active');
+                if (theme !== null) {
+                    if (theme === 'light') {
+                        document.body.classList.remove('dark-mode');
+                        document.body.classList.add('light-mode');
+                        themeLightButton.classList.add('active');
+                        themeDarkButton.classList.remove('active');
+                    } else {
+                        document.body.classList.remove('light-mode');
+                        document.body.classList.add('dark-mode');
+                        themeDarkButton.classList.add('active');
+                        themeLightButton.classList.remove('active');
+                    }
                 }
 
                 // Apply Music
-                if (music === 'on') {
-                    backgroundMusic.play();
-                    musicOnButton.classList.add('active');
-                    musicOffButton.classList.remove('active');
-                } else {
-                    backgroundMusic.pause();
-                    musicOffButton.classList.add('active');
-                    musicOnButton.classList.remove('active');
+                if (music !== null) {
+                    if (music === 'on') {
+                        backgroundMusic.play();
+                        musicOnButton.classList.add('active');
+                        musicOffButton.classList.remove('active');
+                    } else {
+                        backgroundMusic.pause();
+                        musicOffButton.classList.add('active');
+                        musicOnButton.classList.remove('active');
+                    }
                 }
-                
+
                 // Apply Timer
-                timerActive = (timer === 'on');
-                if (timerActive) {
-                    timerOnButton.classList.add('active');
-                    timerOffButton.classList.remove('active');
-                    timerDisplay.style.display = '';
-                } else {
-                    timerOffButton.classList.add('active');
-                    timerOnButton.classList.remove('active');
-                    timerDisplay.style.display = 'none';
-                    resetTimer();
+                const wasTimerActive = timerActive;
+                if (timer !== null) {
+                    timerActive = (timer === 'on');
+                    if (timerActive) {
+                        timerOnButton.classList.add('active');
+                        timerOffButton.classList.remove('active');
+                        timerDisplay.style.display = '';
+                    } else {
+                        timerOffButton.classList.add('active');
+                        timerOnButton.classList.remove('active');
+                        timerDisplay.style.display = 'none';
+                        stopTimer();
+                    }
                 }
                 
-                // Apply INF Levels
-                infLevelsActive = (infLevels === 'on');
-                if (infLevelsActive) {
-                    infLevelsOnButton.classList.add('active');
-                    infLevelsOffButton.classList.remove('active');
-                } else {
-                    infLevelsOffButton.classList.add('active');
-                    infLevelsOnButton.classList.remove('active');
+                // Apply Inf Levels
+                const wasInfLevelsActive = infLevelsActive;
+                if (infLevels !== null) {
+                    infLevelsActive = (infLevels === 'on');
+                    if (infLevelsActive) {
+                        infLevelsOnButton.classList.add('active');
+                        infLevelsOffButton.classList.remove('active');
+                        mostLevelsDisplay.style.display = '';
+                        infLevelStats.style.display = 'none';
+                        isTenLevelRun = false;
+                    } else {
+                        infLevelsOffButton.classList.add('active');
+                        infLevelsOnButton.classList.remove('active');
+                        mostLevelsDisplay.style.display = 'none';
+                        infLevelStats.style.display = 'grid';
+                        isTenLevelRun = true;
+                    }
                 }
-                toggleInfLevelStats(!infLevelsActive);
+                
+                // Reset the game only if a mode has changed
+                if ((timerActive !== wasTimerActive) || (infLevelsActive !== wasInfLevelsActive)) {
+                    resetGame();
+                }
             }
 
             function loadSettings() {
-                const storedTheme = localStorage.getItem('theme');
-                const storedMusic = localStorage.getItem('music');
-                const storedTimer = localStorage.getItem('timer');
-                const storedInfLevels = localStorage.getItem('infLevels');
-                applySettings(storedTheme || 'dark', storedMusic || 'off', storedTimer || 'off', storedInfLevels || 'on');
+                const savedTheme = localStorage.getItem('theme') || 'dark';
+                const savedMusic = localStorage.getItem('music') || 'on';
+                const savedTimer = localStorage.getItem('timer') || 'off'; // Change default here
+                const savedInfLevels = localStorage.getItem('infLevels') || 'on';
+
+                applySettings(savedTheme, savedMusic, savedTimer, savedInfLevels);
             }
-            
+
             // --- Event Listeners ---
+            resetButton.addEventListener('click', resetGame);
             settingsButton.addEventListener('click', () => {
                 settingsPanel.classList.add('open');
                 document.body.classList.add('dimmed');
             });
-
             backButton.addEventListener('click', () => {
                 settingsPanel.classList.remove('open');
                 document.body.classList.remove('dimmed');
-            });
-
-            musicOnButton.addEventListener('click', () => {
-                backgroundMusic.play();
-                musicOnButton.classList.add('active');
-                musicOffButton.classList.remove('active');
-                saveSettings();
-            });
-            musicOffButton.addEventListener('click', () => {
-                backgroundMusic.pause();
-                musicOffButton.classList.add('active');
-                musicOnButton.classList.remove('active');
                 saveSettings();
             });
 
-            themeDarkButton.addEventListener('click', () => {
-                applySettings('dark', backgroundMusic.paused ? 'off' : 'on', timerActive ? 'on' : 'off', infLevelsActive ? 'on' : 'off');
-                saveSettings();
-            });
-            themeLightButton.addEventListener('click', () => {
-                applySettings('light', backgroundMusic.paused ? 'off' : 'on', timerActive ? 'on' : 'off', infLevelsActive ? 'on' : 'off');
-                saveSettings();
-            });
+            musicOnButton.addEventListener('click', () => { applySettings(null, 'on', null, null); saveSettings(); });
+            musicOffButton.addEventListener('click', () => { applySettings(null, 'off', null, null); saveSettings(); });
+            themeDarkButton.addEventListener('click', () => { applySettings('dark', null, null, null); saveSettings(); });
+            themeLightButton.addEventListener('click', () => { applySettings('light', null, null, null); saveSettings(); });
             
-            timerOnButton.addEventListener('click', () => {
-                timerActive = true;
-                timerOnButton.classList.add('active');
-                timerOffButton.classList.remove('active');
-                timerDisplay.style.display = '';
-                saveSettings();
-                resetGame();
-            });
-            timerOffButton.addEventListener('click', () => {
-                timerActive = false;
-                timerOffButton.classList.add('active');
-                timerOnButton.classList.remove('active');
-                timerDisplay.style.display = 'none';
-                saveSettings();
-                resetGame();
-            });
+            // Revert to original separate setting logic
+            timerOnButton.addEventListener('click', () => { applySettings(null, null, 'on', null); saveSettings(); });
+            timerOffButton.addEventListener('click', () => { applySettings(null, null, 'off', null); saveSettings(); });
+            infLevelsOnButton.addEventListener('click', () => { applySettings(null, null, null, 'on'); saveSettings(); });
+            infLevelsOffButton.addEventListener('click', () => { applySettings(null, null, null, 'off'); saveSettings(); });
 
-            infLevelsOnButton.addEventListener('click', () => {
-                infLevelsActive = true;
-                infLevelsOnButton.classList.add('active');
-                infLevelsOffButton.classList.remove('active');
-                toggleInfLevelStats(!infLevelsActive); // Hide stats
-                saveSettings();
-                resetGame();
-            });
-            infLevelsOffButton.addEventListener('click', () => {
-                infLevelsActive = false;
-                infLevelsOffButton.classList.add('active');
-                infLevelsOnButton.classList.remove('active');
-                toggleInfLevelStats(!infLevelsActive); // Show stats
-                saveSettings();
-                resetGame();
-            });
-
-            resetButton.addEventListener('click', resetGame);
-
-            // --- Initialization ---
+            // Initial setup
             loadHighScores();
             loadSettings();
+            generateNumbers();
             generateTargetSum();
         });
     </script>
