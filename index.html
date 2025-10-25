@@ -225,6 +225,34 @@
             filter: invert(100%);
         }
 
+        /* Hard Mode button */
+        #hard-mode-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 15px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s ease;
+            z-index: 20;
+        }
+        #hard-mode-button:hover {
+            background-color: #f44336;
+        }
+        #hard-mode-button img {
+            height: 20px;
+            width: auto;
+        }
+
         /* Settings panel */
         #settings-panel {
             position: fixed;
@@ -320,6 +348,12 @@
     <div id="settings-button">
         <img src="settings.png" alt="Settings">
     </div>
+
+    <!-- New "Hard Mode" button -->
+    <a id="hard-mode-button" href="/hard mode.html">
+        Hard Mode
+        <img src="hardmode.png" alt="Hard Mode Icon">
+    </a>
 
     <div id="settings-panel">
         <h2>Settings</h2>
@@ -418,7 +452,6 @@
             const feedbackMessage = document.getElementById('feedback-message');
             const resetButton = document.getElementById('reset-btn');
             const levelUpOverlay = document.getElementById('level-up-overlay');
-
             const settingsButton = document.getElementById('settings-button');
             const settingsPanel = document.getElementById('settings-panel');
             const backButton = document.getElementById('back-button');
