@@ -70,7 +70,7 @@
             display: flex;
             justify-content: space-between;
             margin-bottom: 1em;
-            font-size: 1.2em; /* This size is inherited by all children */
+            font-size: 1.2em;
             font-weight: bold;
         }
         
@@ -89,14 +89,13 @@
         }
         
         .current-score-container {
-            /* Inherits font size from parent .game-header-stats */
             font-size: inherit; 
             font-weight: inherit;
             margin-bottom: 0.5em;
         }
         
         .target-score-container {
-            font-size: 1.5em; /* Larger font size for the target */
+            font-size: 1.5em;
             font-weight: bold;
             margin-bottom: 0.5em;
         }
@@ -131,10 +130,9 @@
             border-color: #218838;
         }
         
-        /* New fade out class for green buttons */
         .number-btn.fade-out-green {
             transition: background-color 0.75s ease-out, border-color 0.75s ease-out, color 0.75s ease-out;
-            background-color: #333; /* Fades back to the default button color */
+            background-color: #333;
             border-color: #555;
         }
 
@@ -160,7 +158,6 @@
             transition: color 0.5s ease;
         }
         
-        /* Timer display style */
         #timer-display {
             font-size: 1.2em;
             font-weight: bold;
@@ -214,13 +211,12 @@
         }
         #settings-button.hidden {
             opacity: 0;
-            pointer-events: none; /* Prevents clicks on the hidden button */
+            pointer-events: none;
         }
         #settings-button img {
             width: 100%;
             height: 100%;
         }
-        /* Invert the image color for dark mode */
         body.dark-mode #settings-button img {
             filter: invert(100%);
         }
@@ -257,7 +253,7 @@
         #settings-panel {
             position: fixed;
             top: 0;
-            left: -250px; /* Initially hidden off-screen */
+            left: -250px;
             width: 250px;
             height: 100%;
             background-color: #333;
@@ -265,11 +261,11 @@
             padding: 20px;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
             transition: left 0.3s ease-in-out;
-            z-index: 30; /* Higher than settings button */
+            z-index: 30;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            pointer-events: auto; /* Re-enables clicks for the panel itself */
+            pointer-events: auto;
         }
         #settings-panel.open {
             left: 0;
@@ -300,7 +296,7 @@
         }
         
         #back-button {
-            margin-top: auto; /* Pushes the button to the bottom of the flex container */
+            margin-top: auto;
             padding: 10px 20px;
             font-size: 1em;
             cursor: pointer;
@@ -349,7 +345,6 @@
         <img src="settings.png" alt="Settings">
     </div>
 
-    <!-- New "Hard Mode" button -->
     <a id="hard-mode-button" href="/index.html">
         Return
         <img src="return.png" alt="Return icon">
@@ -389,19 +384,19 @@
     </div>
 
     <div class="game-container">
-        <h1>Hard Mode Testing [Soon]</h1>
+        <h1>Hard Mode</h1>
         <div id="timer-display">00:00:00.000</div>
         
         <div class="info-bar">
             <span>Level: <span id="level">1</span></span>
-            <span id="most-levels-display">Most Levels: <span id="most-level">0</span></span>
+            <span id="hard-most-levels-display">Most Hard Levels: <span id="hard-most-level">0</span></span>
         </div>
         
         <div class="game-header-stats">
             <div class="current-score-container">
                 Current Score: <span id="current-score">0</span>
             </div>
-            <span>Most Score: <span id="most-score">0</span></span>
+            <span>Most Hard Score: <span id="hard-most-score">0</span></span>
         </div>
         
         <div class="game-scores">
@@ -413,12 +408,10 @@
             </div>
         </div>
         
-        <!-- Wins and Best Time Display Container -->
-        <div id="inf-level-stats" class="game-stats-display">
-            <span>Wins: <span id="wins">0</span></span>
-            <span>Best Time: <span id="best-time">--:--:--.---</span></span>
+        <div id="hard-inf-level-stats" class="game-stats-display">
+            <span>Hard Wins: <span id="hard-wins">0</span></span>
+            <span>Best Time: <span id="hard-best-time">--:--:--.---</span></span>
         </div>
-        <!-- END NEW -->
 
         <div class="numbers-grid" id="numbers-grid">
             <!-- Number buttons will be dynamically added here -->
@@ -428,7 +421,6 @@
         </div>
         <p class="feedback-message hidden" id="feedback-message"></p>
 
-        <!-- Level-up overlay -->
         <div id="level-up-overlay">
             <img src="level-up.png" alt="Level Up!" style="max-width: 80%; height: auto;">
         </div>
@@ -445,10 +437,7 @@
             const currentSumElement = document.getElementById('current-sum');
             const targetSumElement = document.getElementById('target-sum');
             const levelElement = document.getElementById('level');
-            const mostLevelElement = document.getElementById('most-level');
-            const mostLevelsDisplay = document.getElementById('most-levels-display');
             const currentScoreElement = document.getElementById('current-score');
-            const mostScoreElement = document.getElementById('most-score');
             const feedbackMessage = document.getElementById('feedback-message');
             const resetButton = document.getElementById('reset-btn');
             const levelUpOverlay = document.getElementById('level-up-overlay');
@@ -466,46 +455,52 @@
             const timerDisplay = document.getElementById('timer-display');
             const backgroundMusic = document.getElementById('background-music');
 
-            // Wins and Best Time Elements
-            const winsElement = document.getElementById('wins');
-            const bestTimeElement = document.getElementById('best-time');
-            const infLevelStats = document.getElementById('inf-level-stats');
+            const hardMostLevelDisplay = document.getElementById('hard-most-levels-display');
+            const hardMostLevelElement = document.getElementById('hard-most-level');
+            const hardMostScoreElement = document.getElementById('hard-most-score');
+            const hardWinsElement = document.getElementById('hard-wins');
+            const hardBestTimeElement = document.getElementById('hard-best-time');
+            const hardInfLevelStats = document.getElementById('hard-inf-level-stats');
 
             let totalSum = 0;
             let targetSum = 0;
             let currentLevel = 1;
             let currentScore = 0;
+            let hardMostLevel = 0;
+            let hardMostScore = 0;
+            let hardGameWins = 0;
+            let hardBestTime = Infinity;
             let timerFrame;
             let startTime;
-            let timerActive = false; // Default: Timer OFF
+            let timerActive = false;
             let gameStarted = false;
-            let infLevelsActive = true; // Default: Infinite Levels ON
-            let gameWins = 0;
-            let bestTime = Infinity;
+            let infLevelsActive = true;
             let numberValues = [];
-            let currentRunTime = 0; // Cumulative time for the 10-level run
-            let isTenLevelRun = false; // Tracks if it's a 10-level game
+            let currentRunTime = 0;
+            let isTenLevelRun = false;
 
             // --- High Score Functions ---
             function loadHighScores() {
-                const storedMostLevel = localStorage.getItem('mostLevel');
-                const storedMostScore = localStorage.getItem('mostScore');
-                const storedWins = localStorage.getItem('wins');
-                const storedBestTime = localStorage.getItem('bestTime');
+                const storedHardMostLevel = localStorage.getItem('hard-mostLevel');
+                const storedHardMostScore = localStorage.getItem('hard-mostScore');
+                const storedHardWins = localStorage.getItem('hard-wins');
+                const storedHardBestTime = localStorage.getItem('hard-bestTime');
 
-                if (storedMostLevel) {
-                    mostLevelElement.textContent = storedMostLevel;
+                if (storedHardMostLevel) {
+                    hardMostLevel = parseInt(storedHardMostLevel, 10);
+                    hardMostLevelElement.textContent = hardMostLevel;
                 }
-                if (storedMostScore) {
-                    mostScoreElement.textContent = storedMostScore;
+                if (storedHardMostScore) {
+                    hardMostScore = parseInt(storedHardMostScore, 10);
+                    hardMostScoreElement.textContent = hardMostScore;
                 }
-                if (storedWins) {
-                    gameWins = parseInt(storedWins, 10);
-                    winsElement.textContent = gameWins;
+                if (storedHardWins) {
+                    hardGameWins = parseInt(storedHardWins, 10);
+                    hardWinsElement.textContent = hardGameWins;
                 }
-                if (storedBestTime && storedBestTime !== 'Infinity') {
-                    bestTime = parseFloat(storedBestTime);
-                    bestTimeElement.textContent = formatTime(bestTime);
+                if (storedHardBestTime && storedHardBestTime !== 'Infinity') {
+                    hardBestTime = parseFloat(storedHardBestTime);
+                    hardBestTimeElement.textContent = formatTime(hardBestTime);
                 }
             }
 
@@ -529,7 +524,7 @@
             function resetAndStartTimer() {
                 stopTimer();
                 timerDisplay.textContent = '00:00:00.000';
-                gameStarted = false; // Reset gameStarted flag
+                gameStarted = false;
             }
 
             function formatTime(milliseconds) {
@@ -604,50 +599,50 @@
                 if (totalSum === targetSum) {
                     currentScore += 10;
                     currentScoreElement.textContent = currentScore;
-                    updateMostScore();
+                    updateHardMostScore();
                     
-                    currentRunTime += performance.now() - startTime; // Add elapsed time to cumulative total
-                    stopTimer(); // Stop timer to calculate time
+                    currentRunTime += performance.now() - startTime;
+                    stopTimer();
 
                     if (isTenLevelRun) {
                         if (currentLevel < 10) {
                             showLevelUpOverlay();
                         } else {
-                            updateBestTime();
+                            updateHardBestTime();
                             showEndGameMessage();
                         }
                     } else {
-                        updateMostLevel();
+                        updateHardMostLevel();
                         showLevelUpOverlay();
                     }
                 }
             }
 
-            function updateBestTime() {
-                if (currentRunTime < bestTime) {
-                    bestTime = currentRunTime;
-                    localStorage.setItem('bestTime', bestTime);
-                    bestTimeElement.textContent = formatTime(bestTime);
+            function updateHardBestTime() {
+                if (currentRunTime < hardBestTime) {
+                    hardBestTime = currentRunTime;
+                    localStorage.setItem('hard-bestTime', hardBestTime);
+                    hardBestTimeElement.textContent = formatTime(hardBestTime);
                 }
-                gameWins++;
-                localStorage.setItem('wins', gameWins);
-                winsElement.textContent = gameWins;
+                hardGameWins++;
+                localStorage.setItem('hard-wins', hardGameWins);
+                hardWinsElement.textContent = hardGameWins;
             }
 
-            function updateMostScore() {
-                const mostScore = parseInt(mostScoreElement.textContent, 10);
-                if (currentScore > mostScore) {
-                    mostScoreElement.textContent = currentScore;
-                    localStorage.setItem('mostScore', currentScore);
+            function updateHardMostScore() {
+                if (currentScore > hardMostScore) {
+                    hardMostScore = currentScore;
+                    hardMostScoreElement.textContent = hardMostScore;
+                    localStorage.setItem('hard-mostScore', hardMostScore);
                 }
             }
 
-            function updateMostLevel() {
+            function updateHardMostLevel() {
                 if (infLevelsActive) {
-                    const mostLevel = parseInt(mostLevelElement.textContent, 10);
-                    if (currentLevel > mostLevel) {
-                        mostLevelElement.textContent = currentLevel;
-                        localStorage.setItem('mostLevel', currentLevel);
+                    if (currentLevel > hardMostLevel) {
+                        hardMostLevel = currentLevel;
+                        hardMostLevelElement.textContent = hardMostLevel;
+                        localStorage.setItem('hard-mostLevel', hardMostLevel);
                     }
                 }
             }
@@ -711,10 +706,9 @@
                         button.classList.remove('fade-out-green');
                         button.querySelector('.toggle-state').textContent = '0';
                     });
-                    generateNumbers(); // Re-generate numbers for the new level
+                    generateNumbers();
                     generateTargetSum();
                     if (timerActive) {
-                        // Restart the timer only if in INF mode
                         startTimer();
                         gameStarted = true;
                     }
@@ -807,19 +801,18 @@
                     if (infLevelsActive) {
                         infLevelsOnButton.classList.add('active');
                         infLevelsOffButton.classList.remove('active');
-                        mostLevelsDisplay.style.display = '';
-                        infLevelStats.style.display = 'none';
+                        hardMostLevelDisplay.style.display = '';
+                        hardInfLevelStats.style.display = 'none';
                         isTenLevelRun = false;
                     } else {
                         infLevelsOffButton.classList.add('active');
                         infLevelsOnButton.classList.remove('active');
-                        mostLevelsDisplay.style.display = 'none';
-                        infLevelStats.style.display = 'grid';
+                        hardMostLevelDisplay.style.display = 'none';
+                        hardInfLevelStats.style.display = 'grid';
                         isTenLevelRun = true;
                     }
                 }
                 
-                // Reset the game only if a mode has changed
                 if ((timerActive !== wasTimerActive) || (infLevelsActive !== wasInfLevelsActive)) {
                     resetGame();
                 }
@@ -828,7 +821,7 @@
             function loadSettings() {
                 const savedTheme = localStorage.getItem('theme') || 'dark';
                 const savedMusic = localStorage.getItem('music') || 'on';
-                const savedTimer = localStorage.getItem('timer') || 'off'; // Change default here
+                const savedTimer = localStorage.getItem('timer') || 'off';
                 const savedInfLevels = localStorage.getItem('infLevels') || 'on';
 
                 applySettings(savedTheme, savedMusic, savedTimer, savedInfLevels);
@@ -851,7 +844,6 @@
             themeDarkButton.addEventListener('click', () => { applySettings('dark', null, null, null); saveSettings(); });
             themeLightButton.addEventListener('click', () => { applySettings('light', null, null, null); saveSettings(); });
             
-            // Revert to original separate setting logic
             timerOnButton.addEventListener('click', () => { applySettings(null, null, 'on', null); saveSettings(); });
             timerOffButton.addEventListener('click', () => { applySettings(null, null, 'off', null); saveSettings(); });
             infLevelsOnButton.addEventListener('click', () => { applySettings(null, null, null, 'on'); saveSettings(); });
