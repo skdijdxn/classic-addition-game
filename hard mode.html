@@ -1,1 +1,467 @@
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const numbersGrid = document.getElementById('numbers-grid');
+        const currentSumElement = document.getElementById('current-sum');
+        const targetSumElement = document.getElementById('target-sum');
+        const levelElement = document.getElementById('level');
+        const mostLevelElement = document.getElementById('most-level');
+        const mostLevelsDisplay = document.getElementById('most-levels-display');
+        const currentScoreElement = document.getElementById('current-score');
+        const mostScoreElement = document.getElementById('most-score');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const resetButton = document.getElementById('reset-btn');
+        const levelUpOverlay = document.getElementById('level-up-overlay');
+        const settingsButton = document.getElementById('settings-button');
+        const settingsPanel = document.getElementById('settings-panel');
+        const backButton = document.getElementById('back-button');
+        const musicOnButton = document.getElementById('music-on');
+        const musicOffButton = document.getElementById('music-off');
+        const themeDarkButton = document.getElementById('theme-dark');
+        const themeLightButton = document.getElementById('theme-light');
+        const timerOnButton = document.getElementById('timer-on');
+        const timerOffButton = document.getElementById('timer-off');
+        const infLevelsOnButton = document.getElementById('inf-levels-on');
+        const infLevelsOffButton = document.getElementById('inf-levels-off');
+        const timerDisplay = document.getElementById('timer-display');
+        const backgroundMusic = document.getElementById('background-music');
+
+        // Wins and Best Time Elements
+        const winsElement = document.getElementById('wins');
+        const bestTimeElement = document.getElementById('best-time');
+        const infLevelStats = document.getElementById('inf-level-stats');
+
+        let totalSum = 0;
+        let targetSum = 0;
+        let currentLevel = 1;
+        let currentScore = 0;
+        let timerFrame;
+        let startTime;
+        let timerActive = false; // Default: Timer OFF
+        let gameStarted = false;
+        let infLevelsActive = true; // Default: Infinite Levels ON
+        let hardModeWins = 0; // Variable for hard mode wins
+        let hardModeBestTime = Infinity; // Variable for hard mode best time
+        let numberValues = [];
+        let currentRunTime = 0; // Cumulative time for the 10-level run
+        let isTenLevelRun = false; // Tracks if it's a 10-level game
+
+        // ** NEW: Hard Mode Stat Variables and Storage Keys **
+        const HARD_MODE_MOST_LEVEL_KEY = 'hardModeMostLevel';
+        const HARD_MODE_MOST_SCORE_KEY = 'hardModeMostScore';
+
+        // --- High Score Functions ---
+        function loadHighScores() {
+            if (isTenLevelRun) {
+                const storedHardModeMostLevel = localStorage.getItem(HARD_MODE_MOST_LEVEL_KEY);
+                const storedHardModeMostScore = localStorage.getItem(HARD_MODE_MOST_SCORE_KEY);
+                const storedHardModeWins = localStorage.getItem('hardModeWins');
+                const storedHardModeBestTime = localStorage.getItem('hardModeBestTime');
+                
+                mostLevelElement.textContent = storedHardModeMostLevel || 0;
+                mostScoreElement.textContent = storedHardModeMostScore || 0;
+                winsElement.textContent = storedHardModeWins || 0;
+                
+                if (storedHardModeBestTime && storedHardModeBestTime !== 'Infinity') {
+                    hardModeBestTime = parseFloat(storedHardModeBestTime);
+                    bestTimeElement.textContent = formatTime(hardModeBestTime);
+                } else {
+                    hardModeBestTime = Infinity;
+                    bestTimeElement.textContent = '--:--:--.---';
+                }
+            } else {
+                const storedMostLevel = localStorage.getItem('mostLevel');
+                const storedMostScore = localStorage.getItem('mostScore');
+                
+                mostLevelElement.textContent = storedMostLevel || 0;
+                mostScoreElement.textContent = storedMostScore || 0;
+            }
+        }
+        
+        function updateMostScore() {
+            if (isTenLevelRun) {
+                const hardModeMostScore = parseInt(localStorage.getItem(HARD_MODE_MOST_SCORE_KEY) || 0, 10);
+                if (currentScore > hardModeMostScore) {
+                    localStorage.setItem(HARD_MODE_MOST_SCORE_KEY, currentScore);
+                    mostScoreElement.textContent = currentScore;
+                }
+            } else {
+                const mostScore = parseInt(localStorage.getItem('mostScore') || 0, 10);
+                if (currentScore > mostScore) {
+                    localStorage.setItem('mostScore', currentScore);
+                    mostScoreElement.textContent = currentScore;
+                }
+            }
+        }
+        
+        function updateMostLevel() {
+            if (isTenLevelRun) {
+                const hardModeMostLevel = parseInt(localStorage.getItem(HARD_MODE_MOST_LEVEL_KEY) || 0, 10);
+                if (currentLevel > hardModeMostLevel) {
+                    localStorage.setItem(HARD_MODE_MOST_LEVEL_KEY, currentLevel);
+                    mostLevelElement.textContent = currentLevel;
+                }
+            } else {
+                const mostLevel = parseInt(localStorage.getItem('mostLevel') || 0, 10);
+                if (currentLevel > mostLevel) {
+                    localStorage.setItem('mostLevel', currentLevel);
+                    mostLevelElement.textContent = currentLevel;
+                }
+            }
+        }
+
+        // --- Timer Functions ---
+        function startTimer() {
+            if (timerActive) {
+                startTime = performance.now();
+                function updateTimer() {
+                    const elapsedTime = performance.now() - startTime;
+                    timerDisplay.textContent = formatTime(currentRunTime + elapsedTime);
+                    timerFrame = requestAnimationFrame(updateTimer);
+                }
+                timerFrame = requestAnimationFrame(updateTimer);
+            }
+        }
+
+        function stopTimer() {
+            cancelAnimationFrame(timerFrame);
+        }
+        
+        function resetAndStartTimer() {
+            stopTimer();
+            timerDisplay.textContent = '00:00:00.000';
+            gameStarted = false;
+        }
+
+        function formatTime(milliseconds) {
+            const hours = Math.floor(milliseconds / 3600000);
+            const minutes = Math.floor((milliseconds % 3600000) / 60000);
+            const seconds = Math.floor((milliseconds % 60000) / 1000);
+            const ms = Math.floor(milliseconds % 1000);
+            return `${padZero(hours)}:${padZero(minutes)}:${padZero(seconds)}.${padZero(ms, 3)}`;
+        }
+
+        function padZero(number, length = 2) {
+            return number.toString().padStart(length, '0');
+        }
+
+        // --- Game Logic Functions ---
+        function generateNumbers() {
+            numberValues = [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384];
+        }
+
+        function generateTargetSum() {
+            let tempValues = [...numberValues];
+            let possibleSum = 0;
+            let usedValuesCount = Math.floor(Math.random() * (tempValues.length - 3)) + 3;
+            
+            for (let i = 0; i < usedValuesCount; i++) {
+                const randomIndex = Math.floor(Math.random() * tempValues.length);
+                const randomValue = tempValues.splice(randomIndex, 1);
+                possibleSum += parseInt(randomValue, 10);
+            }
+
+            if (possibleSum === 0) {
+                const randomValue = numberValues[Math.floor(Math.random() * numberValues.length)];
+                possibleSum = randomValue;
+            }
+
+            targetSum = possibleSum;
+            targetSumElement.textContent = targetSum;
+            createNumberButtons(numberValues);
+        }
+        
+        function createNumberButtons(values) {
+            numbersGrid.innerHTML = '';
+            values.forEach(value => {
+                const button = document.createElement('button');
+                button.classList.add('number-btn');
+                button.dataset.value = value;
+                button.innerHTML = `${value}<span class="toggle-state">0</span>`; 
+                button.addEventListener('click', handleButtonClick);
+                numbersGrid.appendChild(button);
+            });
+        }
+
+        function handleButtonClick(event) {
+            const button = event.currentTarget;
+            const value = parseInt(button.dataset.value, 10);
+            const toggleStateSpan = button.querySelector('.toggle-state');
+
+            if (!gameStarted && timerActive) {
+                startTimer();
+                gameStarted = true;
+            }
+
+            if (isNaN(totalSum) || totalSum === null) {
+                totalSum = 0;
+            }
+
+            if (button.classList.contains('active')) {
+                if (totalSum - value >= 0) {
+                    totalSum -= value;
+                    button.classList.remove('active');
+                    toggleStateSpan.textContent = '0';
+                }
+            } else {
+                totalSum += value;
+                button.classList.add('active');
+                toggleStateSpan.textContent = '1';
+            }
+
+            currentSumElement.textContent = totalSum;
+            checkWinCondition();
+        }
+
+        function checkWinCondition() {
+            feedbackMessage.classList.add('hidden');
+            if (totalSum > targetSum) {
+                showFeedback('incorrect', "Incorrect sum. Try again!");
+                if (isTenLevelRun) {
+                    setTimeout(() => {
+                        alert(`Game Over! You failed to complete level ${currentLevel}.`);
+                        currentRunTime = 0;
+                        initGame();
+                    }, 500);
+                }
+                resetGameVariables();
+                generateTargetSum();
+            } else if (totalSum === targetSum) {
+                currentScore += 10;
+                currentScoreElement.textContent = currentScore;
+                
+                const buttons = document.querySelectorAll('.number-btn.active');
+                buttons.forEach(button => {
+                    button.classList.add('fade-out-green');
+                });
+                showFeedback('success', "Correct! Well done!");
+                
+                if (isTenLevelRun) {
+                    handleTenLevelRun();
+                } else {
+                    updateMostLevel();
+                    updateMostScore();
+                    showLevelUpOverlay();
+                }
+            }
+        }
+        
+        function handleTenLevelRun() {
+            currentRunTime += performance.now() - startTime;
+            stopTimer();
+
+            if (currentLevel < 10) {
+                showLevelUpOverlay();
+            } else {
+                gameWon();
+            }
+        }
+        
+        function gameWon() {
+            if (currentRunTime < hardModeBestTime) {
+                hardModeBestTime = currentRunTime;
+                localStorage.setItem('hardModeBestTime', hardModeBestTime);
+                bestTimeElement.textContent = formatTime(hardModeBestTime);
+            }
+            
+            hardModeWins++;
+            localStorage.setItem('hardModeWins', hardModeWins);
+            winsElement.textContent = hardModeWins;
+            
+            updateMostLevel();
+            updateMostScore();
+            
+            const finalTime = formatTime(currentRunTime);
+            alert(`You completed all 10 levels! Your time: ${finalTime}`);
+            
+            currentRunTime = 0;
+            initGame();
+        }
+        
+        function showLevelUpOverlay() {
+            levelUpOverlay.classList.add('visible');
+
+            setTimeout(() => {
+                levelUpOverlay.style.animation = 'fadeOut 0.5s ease-in-out forwards';
+                setTimeout(() => {
+                    levelUpOverlay.classList.remove('visible');
+                    levelUpOverlay.style.animation = '';
+                    nextLevel();
+                }, 500);
+            }, 1500);
+        }
+        
+        function nextLevel() {
+            currentLevel++;
+            levelElement.textContent = currentLevel;
+            resetGameVariables();
+            generateTargetSum();
+            if (timerActive) {
+                startTimer();
+            }
+        }
+
+        function showFeedback(type, message) {
+            feedbackMessage.textContent = message;
+            feedbackMessage.className = `feedback-message ${type}`;
+            feedbackMessage.classList.remove('hidden');
+        }
+        
+        function resetGameVariables() {
+            totalSum = 0;
+            currentSumElement.textContent = 0;
+            feedbackMessage.classList.add('hidden');
+            document.querySelectorAll('.number-btn').forEach(button => {
+                button.classList.remove('active');
+                button.classList.remove('fade-out-green');
+                button.querySelector('.toggle-state').textContent = '0';
+            });
+        }
+        
+        function resetGame() {
+            totalSum = 0;
+            currentSumElement.textContent = 0;
+            currentLevel = 1;
+            levelElement.textContent = currentLevel;
+            currentScore = 0;
+            currentScoreElement.textContent = currentScore;
+            feedbackMessage.classList.add('hidden');
+            currentRunTime = 0;
+            gameStarted = false;
+            
+            generateNumbers();
+            generateTargetSum();
+            
+            if (timerActive) {
+                stopTimer();
+                timerDisplay.textContent = '00:00:00.000';
+            }
+            
+            document.querySelectorAll('.number-btn').forEach(button => {
+                button.classList.remove('active');
+                button.classList.remove('fade-out-green');
+                button.querySelector('.toggle-state').textContent = '0';
+            });
+        }
+
+        // --- Settings Functions ---
+        function saveSettings() {
+            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+            localStorage.setItem('music', backgroundMusic.paused ? 'off' : 'on');
+            localStorage.setItem('timer', timerActive ? 'on' : 'off');
+            localStorage.setItem('infLevels', infLevelsActive ? 'on' : 'off');
+        }
+
+        function applySettings(theme, music, timer, infLevels) {
+            const wasInfLevelsActive = infLevelsActive;
+            const wasTimerActive = timerActive;
+
+            // Apply Theme
+            if (theme !== null) {
+                if (theme === 'light') {
+                    document.body.classList.remove('dark-mode');
+                    document.body.classList.add('light-mode');
+                    themeLightButton.classList.add('active');
+                    themeDarkButton.classList.remove('active');
+                } else {
+                    document.body.classList.remove('light-mode');
+                    document.body.classList.add('dark-mode');
+                    themeDarkButton.classList.add('active');
+                    themeLightButton.classList.remove('active');
+                }
+            }
+
+            // Apply Music
+            if (music !== null) {
+                if (music === 'on') {
+                    backgroundMusic.play();
+                    musicOnButton.classList.add('active');
+                    musicOffButton.classList.remove('active');
+                } else {
+                    backgroundMusic.pause();
+                    musicOffButton.classList.add('active');
+                    musicOnButton.classList.remove('active');
+                }
+            }
+
+            // Apply Timer
+            if (timer !== null) {
+                timerActive = (timer === 'on');
+                if (timerActive) {
+                    timerOnButton.classList.add('active');
+                    timerOffButton.classList.remove('active');
+                    timerDisplay.style.display = '';
+                } else {
+                    timerOffButton.classList.add('active');
+                    timerOnButton.classList.remove('active');
+                    timerDisplay.style.display = 'none';
+                    stopTimer();
+                }
+            }
+            
+            // Apply Inf Levels
+            if (infLevels !== null) {
+                infLevelsActive = (infLevels === 'on');
+                if (infLevelsActive) {
+                    infLevelsOnButton.classList.add('active');
+                    infLevelsOffButton.classList.remove('active');
+                    mostLevelsDisplay.style.display = '';
+                    infLevelStats.style.display = 'none';
+                    isTenLevelRun = false;
+                } else {
+                    infLevelsOffButton.classList.add('active');
+                    infLevelsOnButton.classList.remove('active');
+                    mostLevelsDisplay.style.display = 'none';
+                    infLevelStats.style.display = 'grid';
+                    isTenLevelRun = true;
+                }
+            }
+            
+            if ((timer !== null && timerActive !== wasTimerActive) || (infLevels !== null && infLevelsActive !== wasInfLevelsActive)) {
+                initGame();
+            } else {
+                loadHighScores(); // Load scores based on current mode after applying settings
+            }
+        }
+
+        function initGame() {
+            resetGame();
+            loadHighScores();
+        }
+        
+        function loadSettings() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            const savedMusic = localStorage.getItem('music') || 'on';
+            const savedTimer = localStorage.getItem('timer') || 'off';
+            const savedInfLevels = localStorage.getItem('infLevels') || 'on';
+
+            applySettings(savedTheme, savedMusic, savedTimer, savedInfLevels);
+        }
+
+        // --- Event Listeners ---
+        resetButton.addEventListener('click', initGame);
+        settingsButton.addEventListener('click', () => {
+            settingsPanel.classList.add('open');
+            document.body.classList.add('dimmed');
+        });
+        backButton.addEventListener('click', () => {
+            settingsPanel.classList.remove('open');
+            document.body.classList.remove('dimmed');
+            saveSettings();
+        });
+
+        musicOnButton.addEventListener('click', () => { applySettings(null, 'on', null, null); saveSettings(); });
+        musicOffButton.addEventListener('click', () => { applySettings(null, 'off', null, null); saveSettings(); });
+        themeDarkButton.addEventListener('click', () => { applySettings('dark', null, null, null); saveSettings(); });
+        themeLightButton.addEventListener('click', () => { applySettings('light', null, null, null); saveSettings(); });
+        
+        timerOnButton.addEventListener('click', () => { applySettings(null, null, 'on', null); saveSettings(); });
+        timerOffButton.addEventListener('click', () => { applySettings(null, null, 'off', null); saveSettings(); });
+        infLevelsOnButton.addEventListener('click', () => { applySettings(null, null, null, 'on'); saveSettings(); });
+        infLevelsOffButton.addEventListener('click', () => { applySettings(null, null, null, 'off'); saveSettings(); });
+
+        // Initial setup
+        loadSettings();
+        initGame();
+    });
+</script>
 
